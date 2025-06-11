@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tic-Tac-Toe Enhanced</title>
+  <style>
+    :root {
+      --bg-light: #f0f8ff;
+      --bg-dark: #1e1e1e;
+      --text-light: #333;
+      --text-dark: #f0f8ff;
+      --cell-bg: #fff;
+      --cell-border: #333;
+      --btn-bg: #00796b;
+      --btn-hover: #004d40;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: var(--bg-light);
+      color: var(--text-light);
+      text-align: center;
+      padding: 20px;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    .dark-mode {
+      background: var(--bg-dark);
+      color: var(--text-dark);
+    }
+
+    .container {
+      max-width: 400px;
+      margin: auto;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+    }
+
+    .scoreboard, .controls {
+      display: flex;
+      justify-content: space-between;
+      margin: 10px 0;
+      font-size: 1rem;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin: 20px 0;
+    }
+
+    .cell {
+      width: 100%;
+      padding-top: 100%;
+      position: relative;
+      background-color: var(--cell-bg);
+      border: 2px solid var(--cell-border);
+      font-size: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .cell span {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      transition: transform 0.2s ease;
+    }
+
+    #statusText {
+      font-size: 1.2rem;
+      margin: 10px 0;
+    }
+
+    button {
+      padding: 10px 15px;
+      font-size: 1rem;
+      background-color: var(--btn-bg);
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    button:hover {
+      background-color: var(--btn-hover);
+    }
+
+    @media (max-width: 500px) {
+      .board {
+        gap: 6px;
+      }
+
+      .scoreboard, .controls {
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Tic-Tac-Toe 🤖🎮</h1>
+
+    <div class="controls">
+      <button id="modeToggle">Mode: Vs AI</button>
+      <button id="themeToggle">Toggle Dark Mode</button>
+    </div>
+
+    <div class="scoreboard">
+      <div>Player X Wins: <span id="xScore">0</span></div>
+      <div>Draws: <span id="drawScore">0</span></div>
+      <div>Player O Wins: <span id="oScore">0</span></div>
+    </div>
+
+    <div class="board" id="board">
+      <div class="cell" data-index="0"><span></span></div>
+      <div class="cell" data-index="1"><span></span></div>
+      <div class="cell" data-index="2"><span></span></div>
+      <div class="cell" data-index="3"><span></span></div>
+      <div class="cell" data-index="4"><span></span></div>
+      <div class="cell" data-index="5"><span></span></div>
+      <div class="cell" data-index="6"><span></span></div>
+      <div class="cell" data-index="7"><span></span></div>
+      <div class="cell" data-index="8"><span></span></div>
+    </div>
+
+    <p id="statusText">Player X's turn</p>
+    <button id="restartBtn">Restart Game</button>
+  </div>
+
+  <audio id="moveSound" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_f2fe62c3ae.mp3?filename=click-124467.mp3"></audio>
+  <audio id="winSound" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_3b63dbaad7.mp3?filename=success-fanfare-trumpets-6185.mp3"></audio>
+  <audio id="drawSound" src="https://cdn.pixabay.com/download/audio/2021/09/02/audio_1407abce3b.mp3?filename=negative_beeps-6008.mp3"></audio>
+
+  <script>
+    const cells = document.querySelectorAll(".cell");
+    const boardEl = document.getElementById("board");
+    const statusText = document.getElementById("statusText");
+    const restartBtn = document.getElementById("restartBtn");
+    const themeToggle = document.getElementById("themeToggle");
+    const modeToggle = document.getElementById("modeToggle");
+
+    const xScoreText = document.getElementById("xScore");
+    const oScoreText = document.getElementById("oScore");
+    const drawScoreText = document.getElementById("drawScore");
+
+    const moveSound = document.getElementById("moveSound");
+    const winSound = document.getElementById("winSound");
+    const drawSound = document.getElementById("drawSound");
+
+    let board = ["", "", "", "", "", "", "", "", ""];
+    let currentPlayer = "X";
+    let running = true;
+    let modeVsAI = true;
+    let xWins = 0, oWins = 0, draws = 0;
+
+    const winConditions = [
+      [0,1,2], [3,4,5], [6,7,8],
+      [0,3,6], [1,4,7], [2,5,8],
+      [0,4,8], [2,4,6],
+    ];
+
+    function init() {
+      cells.forEach(cell => cell.addEventListener("click", cellClicked));
+      restartBtn.addEventListener("click", restartGame);
+      themeToggle.addEventListener("click", toggleTheme);
+      modeToggle.addEventListener("click", toggleMode);
+      updateStatus();
+    }
+
+    function toggleTheme() {
+      document.body.classList.toggle("dark-mode");
+    }
+
+    function toggleMode() {
+      modeVsAI = !modeVsAI;
+      modeToggle.textContent = modeVsAI ? "Mode: Vs AI" : "Mode: 2 Players";
+      restartGame();
+    }
+
+    function cellClicked() {
+      const index = this.getAttribute("data-index");
+      if (board[index] !== "" || !running || (modeVsAI && currentPlayer !== "X")) return;
+
+      makeMove(index);
+      moveSound.play();
+      checkWinner();
+
+      if (running && modeVsAI && currentPlayer === "O") {
+        setTimeout(() => {
+          aiMove();
+          moveSound.play();
+          checkWinner();
+        }, 400);
+      }
+    }
+
+    function makeMove(index) {
+      board[index] = currentPlayer;
+      const cell = document.querySelector(`.cell[data-index='${index}']`);
+      cell.querySelector("span").textContent = currentPlayer;
+    }
+
+    function changePlayer() {
+      currentPlayer = currentPlayer === "X" ? "O" : "X";
+      updateStatus();
+    }
+
+    function updateStatus() {
+      if (running) {
+        statusText.textContent = `Player ${currentPlayer}'s turn`;
+      }
+    }
+
+    function checkWinner() {
+      let won = false;
+
+      for (let condition of winConditions) {
+        const [a,b,c] = condition;
+        if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+          won = true;
+          break;
+        }
+      }
+
+      if (won) {
+        statusText.textContent = `Player ${currentPlayer} wins! 🎉`;
+        winSound.play();
+        running = false;
+        updateScore(currentPlayer);
+      } else if (!board.includes("")) {
+        statusText.textContent = "It's a draw! 😐";
+        drawSound.play();
+        draws++;
+        drawScoreText.textContent = draws;
+        running = false;
+      } else {
+        changePlayer();
+      }
+    }
+    
+    function updateScore(player) {
+      if (player === "X") {
+        xWins++;
+        xScoreText.textContent = xWins;
+      } else {
+        oWins++;
+        oScoreText.textContent = oWins;
+      }
+    }
+
+    function restartGame() {
+      board = ["", "", "", "", "", "", "", "", ""];
+      currentPlayer = "X";
+      running = true;
+      cells.forEach(cell => cell.querySelector("span").textContent = "");
+      updateStatus();
+    }
+
+    function aiMove() {
+      if (!running) return;
+      let emptyIndices = board.map((val, i) => val === "" ? i : null).filter(i => i !== null);
+      if (emptyIndices.length === 0) return;
+      let move = emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
+      currentPlayer = "O";
+      makeMove(move);
+    }
+
+    init();
+  </script>
+</body>
+</html>
